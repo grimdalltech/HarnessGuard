@@ -1,0 +1,5 @@
+{
+  "exclude": ["generated/*", "vendor/*"],
+  "ignore": ["HG029"],
+  "max_file_size": 1000000
+}

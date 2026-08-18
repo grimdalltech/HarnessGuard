@@ -1,0 +1,10 @@
+{
+  "exclude": [
+    "examples/vulnerable_harness.py",
+    "tests/*",
+    "sample-report.json",
+    "*.sarif"
+  ],
+  "ignore": [],
+  "max_file_size": 1000000
+}
