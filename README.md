@@ -6,7 +6,7 @@ HarnessGuard finds security and reliability mistakes where agents, tools, state,
 
 > Status: working alpha MVP. Findings are review signals, not proof of exploitability.
 
-## Why this exists
+## The problem
 
 The recurring failures reported across agent frameworks are not only model failures. They are ordinary engineering defects amplified by autonomous tools:
 
@@ -19,51 +19,27 @@ The recurring failures reported across agent frameworks are not only model failu
 - prompts, environment variables, and tool output leak into logs;
 - broad tool and filesystem permissions multiply blast radius.
 
-Existing open-source tools mainly red-team live models, benchmark prompt injection, or scan MCP components. HarnessGuard targets the **harness source and configuration before execution**, fully locally.
+Existing tools mainly red-team live models, benchmark prompt injection, or scan MCP components. They tell you how a running agent behaves, not how your harness was built. The defects above live in the harness source and configuration, and they are reviewable before anything runs.
 
-## Fast start
+## The solution
 
-Requires Python 3.10+ and no runtime dependencies.
+HarnessGuard scans agent orchestration code **before execution**, fully locally. Python gets AST-aware checks. JSON, JSONC, YAML, TOML, INI, environment, Markdown, and text files get conservative line-level checks. Large, generated, dependency, and binary files are skipped. No imported project modules are loaded.
 
-```bash
-python -m pip install -e .
-harnessguard path/to/agent-project
-```
+Every finding is a deterministic, reviewable signal: rule ID, severity, file, line, and snippet. Findings stream as text or structured JSON and map directly into GitHub code scanning via SARIF.
 
-Without installation:
+## Why HarnessGuard
 
-```bash
-PYTHONPATH=src python -m harnessguard path/to/agent-project
-```
+- **Zero cost and offline.** No runtime dependencies, no endpoint, no token, no account, no paid API. Runs on Python 3.10+ anywhere, including air-gapped environments.
+- **Deterministic.** No LLM in the loop means identical output for identical input. Every run is reproducible and CI-friendly.
+- **Safety by design.** It reads source and configuration only. It never executes the project it scans and never uploads code.
+- **Built for the harness, not the model.** It targets how agents, tools, state, and control loops are wired together, the layer most tooling ignores.
+- **CI-native.** A least-privilege GitHub Actions workflow is included. SARIF uploads appear in GitHub code scanning when code-security upload is available.
+- **Safe to adopt.** Baselines let you ship the scanner into an existing project without failing on old findings; changed findings reappear.
+- **Rule IDs are stable API.** New IDs are added over time; released IDs never silently change meaning.
 
-Windows PowerShell:
+## Features
 
-```powershell
-$env:PYTHONPATH="src"
-python -m harnessguard .
-```
-
-Scan the intentionally vulnerable example:
-
-```powershell
-$env:PYTHONPATH="src"
-python -m harnessguard examples/vulnerable_harness.py --severity high
-```
-
-Exit codes: `0` no finding at/above threshold; `1` policy failed; `2` scanner/config/read error.
-
-## Outputs and CI
-
-```bash
-harnessguard . --format text
-harnessguard . --format json --output report.json
-harnessguard . --format sarif --output harnessguard.sarif
-harnessguard . --severity medium
-```
-
-A least-privilege GitHub Actions workflow is included at `.github/workflows/harnessguard.yml`. SARIF can appear in GitHub code scanning when code-security upload is available for the repository.
-
-## The 30 built-in checks
+### The 30 built-in checks
 
 | ID | Severity | Check |
 |---|---|---|
@@ -104,7 +80,49 @@ List rules from the CLI:
 harnessguard --list-rules
 ```
 
-## Configuration and baselines
+### Outputs and CI
+
+```bash
+harnessguard . --format text
+harnessguard . --format json --output report.json
+harnessguard . --format sarif --output harnessguard.sarif
+harnessguard . --severity medium
+```
+
+Exit codes: `0` no finding at/above threshold; `1` policy failed; `2` scanner/config/read error.
+
+## Quickstart
+
+Requires Python 3.10+ and no runtime dependencies. For the full CLI reference, configuration options, baselines, output formats, and CI setup, see [docs/USAGE.md](docs/USAGE.md).
+
+### Install and run
+
+```bash
+python -m pip install -e .
+harnessguard path/to/agent-project
+```
+
+Without installation:
+
+```bash
+PYTHONPATH=src python -m harnessguard path/to/agent-project
+```
+
+Windows PowerShell:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m harnessguard .
+```
+
+Scan the intentionally vulnerable example:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m harnessguard examples/vulnerable_harness.py --severity high
+```
+
+### Configuration and baselines
 
 Create `.harnessguard.json` in the scan root:
 
@@ -127,11 +145,24 @@ harnessguard . --baseline .harnessguard-baseline.json
 
 Fingerprints include rule, path, line, and snippet; changed findings reappear.
 
+### CI
+
+The included workflow at `.github/workflows/harnessguard.yml` scans on every push and pull request with least-privilege permissions and uploads SARIF to GitHub code scanning.
+
 ## Detection model
 
 Python gets AST-aware checks. JSON, JSONC, YAML, TOML, INI, environment, Markdown, and text files get conservative line-level checks. Large, generated, dependency, and binary files are skipped. No imported project modules are loaded.
 
-This MVP emphasizes high-signal local patterns and deliberately avoids claiming full taint analysis. A finding means “review this boundary.” Future versions should add language-neutral data flow, framework adapters, dependency advisory matching, and policy-as-code.
+This MVP emphasizes high-signal local patterns and deliberately avoids claiming full taint analysis. A finding means "review this boundary." Future versions should add language-neutral data flow, framework adapters, dependency advisory matching, and policy-as-code.
+
+## Roadmap
+
+1. Benchmark rules against real vulnerable and fixed framework examples.
+2. Add taint tracking from prompt/tool inputs to dangerous sinks.
+3. Add framework adapters for LangGraph, CrewAI, AutoGen, Semantic Kernel, PydanticAI, smolagents, and MCP.
+4. Add JavaScript/TypeScript and C# parsers without compromising offline use.
+5. Map checks to OWASP Agentic categories and published advisories in machine-readable metadata.
+6. Add safe autofix suggestions and reusable pre-commit integration.
 
 ## Research evidence
 
@@ -149,16 +180,7 @@ Public reports demonstrate the pain:
 - [Prompt Infection research: injection propagating between agents](https://arxiv.org/html/2410.07283v1)
 - [OWASP Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/)
 
-Nearby tools include [garak](https://github.com/NVIDIA/garak), [PyRIT](https://github.com/Azure/PyRIT), [AgentDojo](https://github.com/ethz-spylab/agentdojo), and [Snyk Agent Scan](https://github.com/snyk/agent-scan). Their scopes differ: HarnessGuard’s MVP is deterministic static scanning of orchestration code with no endpoint, token, account, or paid API.
-
-## Roadmap
-
-1. Benchmark rules against real vulnerable and fixed framework examples.
-2. Add taint tracking from prompt/tool inputs to dangerous sinks.
-3. Add framework adapters for LangGraph, CrewAI, AutoGen, Semantic Kernel, PydanticAI, smolagents, and MCP.
-4. Add JavaScript/TypeScript and C# parsers without compromising offline use.
-5. Map checks to OWASP Agentic categories and published advisories in machine-readable metadata.
-6. Add safe autofix suggestions and reusable pre-commit integration.
+Nearby tools include [garak](https://github.com/NVIDIA/garak), [PyRIT](https://github.com/Azure/PyRIT), [AgentDojo](https://github.com/ethz-spylab/agentdojo), and [Snyk Agent Scan](https://github.com/snyk/agent-scan). Their scopes differ: HarnessGuard's MVP is deterministic static scanning of orchestration code with no endpoint, token, account, or paid API.
 
 ## Development
 
