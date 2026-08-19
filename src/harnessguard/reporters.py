@@ -40,5 +40,5 @@ def render_sarif(result: ScanResult) -> str:
     results = []
     for item in result.findings:
         results.append({"ruleId": item.rule_id, "level": {"critical": "error", "high": "error", "medium": "warning", "low": "note", "info": "note"}[item.severity], "message": {"text": item.message}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": item.path.replace("\\", "/")}, "region": {"startLine": item.line, "startColumn": item.column}}}], "partialFingerprints": {"primaryLocationLineHash": item.fingerprint}})
-    payload = {"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "runs": [{"tool": {"driver": {"name": "HarnessGuard", "version": "0.1.0", "informationUri": "https://github.com/", "rules": rules}}, "results": results}]}
+    payload = {"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "runs": [{"tool": {"driver": {"name": "HarnessGuard", "version": "0.1.0", "informationUri": "https://github.com/grimdalltech/HarnessGuard", "rules": rules}}, "results": results}]}
     return json.dumps(payload, indent=2) + "\n"

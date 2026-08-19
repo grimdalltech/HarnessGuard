@@ -11,11 +11,6 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Grimdall Technologies"}]
 keywords = ["ai-agents", "security", "static-analysis", "multi-agent", "sast"]
-
-[project.urls]
-Homepage = "https://github.com/grimdalltech/HarnessGuard"
-Repository = "https://github.com/grimdalltech/HarnessGuard"
-Issues = "https://github.com/grimdalltech/HarnessGuard/issues"
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: MIT License",
@@ -23,6 +18,11 @@ classifiers = [
   "Topic :: Security",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/grimdalltech/HarnessGuard"
+Repository = "https://github.com/grimdalltech/HarnessGuard"
+Issues = "https://github.com/grimdalltech/HarnessGuard/issues"
 
 [project.scripts]
 harnessguard = "harnessguard.cli:main"

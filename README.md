@@ -155,6 +155,53 @@ Python gets AST-aware checks. JSON, JSONC, YAML, TOML, INI, environment, Markdow
 
 This MVP emphasizes high-signal local patterns and deliberately avoids claiming full taint analysis. A finding means "review this boundary." Future versions should add language-neutral data flow, framework adapters, dependency advisory matching, and policy-as-code.
 
+## Architecture
+
+```
+                         ┌──────────────────────────────┐
+                         │   Config (.harnessguard.json) │
+                         │  exclude · ignore · max_size  │
+                         └──────────────┬───────────────┘
+                                        │
+                                        ▼
+   ┌──────────────┐              ┌──────────────┐
+   │   CLI (cli.py)│──args──────▶│  Scanner      │──walk + filter──▶ supported files
+   │  --format     │              │  (scanner.py) │                   (.py/.json/.yaml/.toml/.env/.md/...)
+   │  --severity   │              └──────┬───────┘
+   │  --baseline   │                     │ read text (never execute, never import)
+   └──────────────┘                     ▼
+                          ┌─────────────────────────────┐
+                          │       per-file analysis      │
+                          │  Python → python_analyzer.py │  AST-aware (ast.NodeVisitor)
+                          │  Text   → text_analyzer.py   │  line-level regex
+                          └──────────────┬──────────────┘
+                                         ▼
+                              ┌──────────────────────┐
+                              │  Rules (rules.py)     │  30 stable IDs + severity + fix
+                              └──────────┬───────────┘
+                                         ▼
+                              ┌──────────────────────┐
+                              │  Models (models.py)   │  Finding (fingerprint), Rule
+                              └──────────┬───────────┘
+                                         ▼
+                     ┌──────────────────────────────────┐
+                     │  Reporters (reporters.py)          │
+                     │  text · json · sarif               │
+                     └──────────────────┬───────────────┘
+                                        ▼
+                     exit code 0 / 1 / 2   +   baseline suppression (baseline.py)
+```
+
+### How a scan works
+
+1. **Discovery.** The scanner walks the target file or directory, applies exclude globs and the file-size cap, and keeps only supported extensions and special names (`Dockerfile`, `mcp.json`, `requirements.txt`). No scanned project module is imported or executed.
+2. **Analysis.** Each supported file is read as text and analyzed twice when relevant: every file goes through the line-level text analyzer; `.py` files also go through the AST-aware Python analyzer.
+3. **Rules.** Both analyzers emit `Finding` objects from the single rule registry (`rules.py`), which assigns each check a stable ID, severity, category, message, and fix hint.
+4. **Suppression.** Rule-level ignores (config `ignore`), inline `harnessguard: ignore`, and baseline fingerprints are applied before findings are sorted and reported.
+5. **Reporting.** Findings render as human-readable text, JSON, or SARIF 2.1. The exit code is `0` when no finding meets the severity threshold, `1` when policy fails, and `2` on a scanner/config/read error.
+
+The scanner has zero runtime dependencies and no network surface: the entire pipeline runs on the standard library, making it safe for laptops, pre-commit hooks, and air-gapped CI.
+
 ## Roadmap
 
 1. Benchmark rules against real vulnerable and fixed framework examples.
